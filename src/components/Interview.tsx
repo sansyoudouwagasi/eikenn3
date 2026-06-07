@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowRight, ShieldAlert, Clock, ChevronLeft } from 'lucide-react';
+import { ArrowRight, ShieldAlert, Clock, ChevronLeft, Play } from 'lucide-react';
 import { speak, stopSpeaking, startListening, stopListening } from '../services/speech';
 import { questionsData } from '../data/questionsData';
 import type { InterviewCard, InterviewQuestion } from '../data/questionsData';
@@ -11,6 +11,7 @@ interface InterviewProps {
 }
 
 type StepType = 
+  | 'waiting_to_start'
   | 'start_greeting'
   | 'greeting_response'
   | 'silent_reading_intro'
@@ -30,7 +31,7 @@ export const Interview: React.FC<InterviewProps> = ({ onBack, onComplete }) => {
 
   // States
   const [activeCard, setActiveCard] = useState<InterviewCard | null>(null);
-  const [step, setStep] = useState<StepType>('start_greeting');
+  const [step, setStep] = useState<StepType>('waiting_to_start');
   const [examinerText, setExaminerText] = useState<string>('');
   const [isExaminerSpeaking, setIsExaminerSpeaking] = useState<boolean>(false);
   
@@ -72,12 +73,12 @@ export const Interview: React.FC<InterviewProps> = ({ onBack, onComplete }) => {
     setActiveCard(cards[randomIndex]);
   }, []);
 
-  // Start the interview flow once card is selected
-  useEffect(() => {
-    if (activeCard && step === 'start_greeting') {
-      runGreeting();
-    }
-  }, [activeCard]);
+  // Handle manual start of the interview flow
+  const handleStartInterview = () => {
+    if (!activeCard) return;
+    setStep('start_greeting');
+    runGreeting();
+  };
 
   // Clean up speech synthesis and timers on unmount
   useEffect(() => {
@@ -125,6 +126,11 @@ export const Interview: React.FC<InterviewProps> = ({ onBack, onComplete }) => {
     setIsExaminerSpeaking(true);
     setExaminerText(text);
     await speak(text, voiceGender, voiceRate);
+    setIsExaminerSpeaking(false);
+  };
+
+  const handleSkipSpeaking = () => {
+    stopSpeaking();
     setIsExaminerSpeaking(false);
   };
 
@@ -328,6 +334,7 @@ export const Interview: React.FC<InterviewProps> = ({ onBack, onComplete }) => {
 
   // Helper for step dots
   const getStepIndex = () => {
+    if (step === 'waiting_to_start') return 0;
     if (step === 'start_greeting' || step === 'greeting_response') return 0;
     if (step === 'silent_reading_intro' || step === 'silent_reading_timer') return 1;
     if (step === 'aloud_reading_intro' || step === 'aloud_reading') return 2;
@@ -368,52 +375,54 @@ export const Interview: React.FC<InterviewProps> = ({ onBack, onComplete }) => {
       )}
 
       {/* Avatar representing examiner Ms. / Mr. Smith */}
-      <div className="avatar-container">
-        <div className={`avatar-wrapper ${isExaminerSpeaking ? 'speaking' : ''}`}>
-          <svg className="avatar-svg" viewBox="0 0 100 100" width="100%" height="100%">
-            {/* Skin */}
-            <circle cx="50" cy="45" r="30" fill="#fbcfe8" />
-            
-            {/* Face/Eyes */}
-            <circle className="eye" cx="40" cy="42" r="3" fill="#1e293b" />
-            <circle className="eye" cx="60" cy="42" r="3" fill="#1e293b" />
-            
-            {/* Blushing */}
-            <circle cx="36" cy="48" r="3" fill="#f472b6" opacity="0.4" />
-            <circle cx="64" cy="48" r="3" fill="#f472b6" opacity="0.4" />
+      {step !== 'waiting_to_start' && step !== 'evaluating' && (
+        <div className="avatar-container">
+          <div className={`avatar-wrapper ${isExaminerSpeaking ? 'speaking' : ''}`}>
+            <svg className="avatar-svg" viewBox="0 0 100 100" width="100%" height="100%">
+              {/* Skin */}
+              <circle cx="50" cy="45" r="30" fill="#fbcfe8" />
+              
+              {/* Face/Eyes */}
+              <circle className="eye" cx="40" cy="42" r="3" fill="#1e293b" />
+              <circle className="eye" cx="60" cy="42" r="3" fill="#1e293b" />
+              
+              {/* Blushing */}
+              <circle cx="36" cy="48" r="3" fill="#f472b6" opacity="0.4" />
+              <circle cx="64" cy="48" r="3" fill="#f472b6" opacity="0.4" />
 
-            {/* Hair */}
-            {voiceGender === 'female' ? (
-              // Female Hair
-              <path d="M 20 40 Q 50 10 80 40 Q 82 60 76 65 Q 70 70 74 55 Q 50 22 26 55 Q 30 70 24 65 Q 18 60 20 40 Z" fill="#653b16" />
-            ) : (
-              // Male Hair
-              <path d="M 22 35 Q 50 12 78 35 Q 80 20 74 15 Q 50 5 26 15 Q 20 20 22 35 Z" fill="#1e293b" />
-            )}
+              {/* Hair */}
+              {voiceGender === 'female' ? (
+                // Female Hair
+                <path d="M 20 40 Q 50 10 80 40 Q 82 60 76 65 Q 70 70 74 55 Q 50 22 26 55 Q 30 70 24 65 Q 18 60 20 40 Z" fill="#653b16" />
+              ) : (
+                // Male Hair
+                <path d="M 22 35 Q 50 12 78 35 Q 80 20 74 15 Q 50 5 26 15 Q 20 20 22 35 Z" fill="#1e293b" />
+              )}
 
-            {/* Mouth */}
-            <path 
-              className={`mouth ${isExaminerSpeaking ? 'speaking' : ''}`}
-              d="M 44 58 Q 50 62 56 58" 
-              stroke="#be185d" 
-              strokeWidth="2.5" 
-              fill="none" 
-              strokeLinecap="round" 
-            />
+              {/* Mouth */}
+              <path 
+                className={`mouth ${isExaminerSpeaking ? 'speaking' : ''}`}
+                d="M 44 58 Q 50 62 56 58" 
+                stroke="#be185d" 
+                strokeWidth="2.5" 
+                fill="none" 
+                strokeLinecap="round" 
+              />
 
-            {/* Clothes */}
-            <path d="M 25 72 L 75 72 L 85 100 L 15 100 Z" fill="#1e3a8a" />
-            <path d="M 40 72 L 50 88 L 60 72 Z" fill="#fff" />
-            <path d="M 47 80 L 53 80 L 50 90 Z" fill="#ef4444" />
-          </svg>
+              {/* Clothes */}
+              <path d="M 25 72 L 75 72 L 85 100 L 15 100 Z" fill="#1e3a8a" />
+              <path d="M 40 72 L 50 88 L 60 72 Z" fill="#fff" />
+              <path d="M 47 80 L 53 80 L 50 90 Z" fill="#ef4444" />
+            </svg>
+          </div>
+          <div className="examiner-name">
+            {voiceGender === 'male' ? 'Mr. Smith (試験官)' : 'Ms. Smith (試験官)'}
+          </div>
         </div>
-        <div className="examiner-name">
-          {voiceGender === 'male' ? 'Mr. Smith (試験官)' : 'Ms. Smith (試験官)'}
-        </div>
-      </div>
+      )}
 
       {/* Examiner speech bubbles. Hide questions in real mode if asking Q1-Q7 */}
-      {step !== 'evaluating' && (
+      {step !== 'waiting_to_start' && step !== 'evaluating' && (
         <div className="examiner-bubble">
           {examMode === 'real' && ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'].includes(step) ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b' }}>
@@ -448,6 +457,42 @@ export const Interview: React.FC<InterviewProps> = ({ onBack, onComplete }) => {
               dangerouslySetInnerHTML={{ __html: activeCard.illustrationSvgCode }} 
             />
           )}
+        </div>
+      )}
+
+      {/* Waiting to start screen */}
+      {step === 'waiting_to_start' && (
+        <div style={{ margin: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', width: '100%', padding: '0 10px', textAlign: 'center' }}>
+          <h3 style={{ color: '#1e3a8a', fontWeight: 800, fontSize: '1.3rem', marginBottom: '4px' }}>英検3級 模擬面接へようこそ</h3>
+          <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: '1.6', margin: '0 10px 10px 10px' }}>
+            本番同様の形式で、面接官（AI）の質問に答える練習を行います。<br />
+            面接官が英語で語りかけますので、マイクに向かって声を出して回答してください。
+          </p>
+          
+          <div style={{ width: '100%', background: '#f1f5f9', borderRadius: '16px', padding: '14px', border: '1px solid #e2e8f0', textAlign: 'left', marginBottom: '10px' }}>
+            <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e3a8a', marginBottom: '8px' }}>💡 面接の流れとコツ：</h4>
+            <ul style={{ fontSize: '0.75rem', color: '#475569', paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <li><strong>1. 挨拶＆受験票受け渡し</strong>: 画面のボタンを押して挨拶します。</li>
+              <li><strong>2. 英文の黙読・音読</strong>: 20秒の黙読の後、声に出して読み上げます。</li>
+              <li><strong>3. 5つの質問 (Q1〜Q5)</strong>: カードやイラスト、あなた自身についての質問に答えます。</li>
+              <li><strong>音声が聞こえない場合</strong>: 画面に「スキップして進む」ボタンが表示されますので、そちらから進行可能です。</li>
+            </ul>
+          </div>
+
+          <button 
+            className="btn-primary" 
+            onClick={handleStartInterview} 
+            disabled={!activeCard}
+            style={{ 
+              padding: '16px', 
+              fontSize: '1.05rem', 
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' 
+            }}
+          >
+            <Play size={20} fill="currentColor" />
+            {activeCard ? '模擬面接をスタートする' : '問題カードをロード中...'}
+          </button>
         </div>
       )}
 
@@ -495,6 +540,32 @@ export const Interview: React.FC<InterviewProps> = ({ onBack, onComplete }) => {
         </div>
       )}
 
+      {/* Examiner speaking indicator & skip button */}
+      {isExaminerSpeaking && step !== 'evaluating' && step !== 'waiting_to_start' && (
+        <div className="input-panel" style={{ background: '#f8fafc', borderColor: '#cbd5e1' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1e3a8a', fontWeight: 700, fontSize: '0.85rem' }}>
+            <div className="wave-bar" style={{ animationDelay: '0.1s', background: '#3b82f6', height: '12px' }}></div>
+            <div className="wave-bar" style={{ animationDelay: '0.3s', background: '#3b82f6', height: '12px' }}></div>
+            <div className="wave-bar" style={{ animationDelay: '0.5s', background: '#3b82f6', height: '12px' }}></div>
+            <span>試験官が話しています...</span>
+          </div>
+          <button 
+            className="btn-secondary" 
+            onClick={handleSkipSpeaking}
+            style={{ 
+              width: '100%', 
+              padding: '10px 16px', 
+              fontSize: '0.8rem', 
+              color: '#64748b', 
+              borderColor: '#e2e8f0',
+              height: 'auto'
+            }}
+          >
+            音声をスキップして次へ進む
+          </button>
+        </div>
+      )}
+
       {/* User interactive speech recording area (Q1 to Q7, greeting) */}
       {isRecording && !isExaminerSpeaking && (
         <div className="input-panel">
@@ -522,7 +593,7 @@ export const Interview: React.FC<InterviewProps> = ({ onBack, onComplete }) => {
       )}
 
       {/* Step dots at the bottom */}
-      {step !== 'evaluating' && (
+      {step !== 'evaluating' && step !== 'waiting_to_start' && (
         <div className="step-indicator" style={{ marginTop: '20px', marginBottom: '10px' }}>
           {Array.from({ length: 11 }).map((_, idx) => (
             <div 

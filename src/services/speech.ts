@@ -55,47 +55,91 @@ export const speak = async (
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US'; // Force English pronunciation to prevent Japanese voices reading English text
     utterance.rate = rate; // Eiken 3rd grade is somewhat slow (around 0.8 to 0.9)
     utterance.pitch = 1.0;
 
     // Filter to English voices
-    const englishVoices = voices.filter((v) => v.lang.toLowerCase().startsWith('en'));
+    const englishVoices = voices.filter((v) => {
+      const l = v.lang.toLowerCase();
+      return l.startsWith('en') || l.includes('en-');
+    });
 
     let selectedVoice: SpeechSynthesisVoice | null = null;
 
-    if (voiceGender === 'male') {
-      // Look for typical male voices (Google US English male, David, etc.)
-      selectedVoice =
-        englishVoices.find(
-          (v) =>
-            v.name.toLowerCase().includes('male') ||
-            v.name.toLowerCase().includes('david') ||
-            v.name.toLowerCase().includes('microsoft david') ||
-            v.name.toLowerCase().includes('google us english')
-        ) || null;
-    } else {
-      // Look for typical female voices (Zira, Samantha, Google US English female, etc.)
-      selectedVoice =
-        englishVoices.find(
-          (v) =>
-            v.name.toLowerCase().includes('female') ||
-            v.name.toLowerCase().includes('zira') ||
-            v.name.toLowerCase().includes('samantha') ||
-            v.name.toLowerCase().includes('google uk english female')
-        ) || null;
-    }
+    // Scoring function to select the best quality voice matching the desired gender
+    const scoreVoice = (voice: SpeechSynthesisVoice, targetGender: 'male' | 'female'): number => {
+      const nameLower = voice.name.toLowerCase();
+      let score = 0;
 
-    // Fallback if specific gender not found: search en-US or any English
-    if (!selectedVoice) {
-      selectedVoice =
-        englishVoices.find((v) => v.lang.toLowerCase() === 'en-us') ||
-        englishVoices.find((v) => v.lang.toLowerCase() === 'en-gb') ||
-        englishVoices[0] ||
-        null;
+      // Prefer en-US for Eiken standard, then en-GB
+      if (voice.lang.toLowerCase() === 'en-us') score += 10;
+      else if (voice.lang.toLowerCase() === 'en-gb') score += 5;
+      else score += 2;
+
+      // Edge/Chrome High-quality natural and online voices
+      if (nameLower.includes('natural')) score += 30;
+      if (nameLower.includes('online')) score += 20;
+      if (nameLower.includes('google')) score += 15;
+
+      // Gender specific weights
+      if (targetGender === 'male') {
+        if (
+          nameLower.includes('david') ||
+          nameLower.includes('guy') ||
+          nameLower.includes('andrew') ||
+          nameLower.includes('male') ||
+          nameLower.includes('james') ||
+          nameLower.includes('christopher')
+        ) {
+          score += 50;
+        } else if (
+          nameLower.includes('zira') ||
+          nameLower.includes('samantha') ||
+          nameLower.includes('female') ||
+          nameLower.includes('aria') ||
+          nameLower.includes('hazel')
+        ) {
+          // Explicitly female voices should be discouraged for male candidates
+          score -= 50;
+        }
+      } else {
+        if (
+          nameLower.includes('zira') ||
+          nameLower.includes('samantha') ||
+          nameLower.includes('aria') ||
+          nameLower.includes('female') ||
+          nameLower.includes('natasha') ||
+          nameLower.includes('hazel')
+        ) {
+          score += 50;
+        } else if (
+          nameLower.includes('david') ||
+          nameLower.includes('guy') ||
+          nameLower.includes('andrew') ||
+          nameLower.includes('male')
+        ) {
+          // Explicitly male voices should be discouraged for female candidates
+          score -= 50;
+        }
+      }
+
+      return score;
+    };
+
+    if (englishVoices.length > 0) {
+      // Sort english voices by quality score descending
+      const sortedVoices = [...englishVoices].sort(
+        (a, b) => scoreVoice(b, voiceGender) - scoreVoice(a, voiceGender)
+      );
+      selectedVoice = sortedVoices[0];
     }
 
     if (selectedVoice) {
       utterance.voice = selectedVoice;
+      console.log(`Speech selected voice: ${selectedVoice.name} (${selectedVoice.lang})`);
+    } else {
+      console.warn('No English voice found, relying on utterance.lang fallback');
     }
 
     utterance.onend = () => {
