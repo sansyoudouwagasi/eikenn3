@@ -92,6 +92,17 @@
   .device-notch, .device-home-indicator {
     display: none;
   }
+  .dashboard-hero {
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .hero-title {
+    font-size: 1.35rem;
+  }
+  .hero-subtitle {
+    font-size: 0.8rem;
+    margin-bottom: 12px;
+  }
 }
 
 /* Common Layout Elements */
@@ -143,6 +154,10 @@
   display: flex;
   flex-direction: column;
   background: #f8fafc;
+}
+
+.app-content > * {
+  flex-shrink: 0;
 }
 
 /* Buttons */
