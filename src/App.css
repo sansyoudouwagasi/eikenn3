@@ -538,8 +538,8 @@
 
 .card-illustration {
   flex: 1;
-  min-height: 160px;
-  max-height: 240px;
+  min-height: 180px;
+  max-height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -550,7 +550,8 @@
   border: 1px solid #f1f5f9;
 }
 
-.card-illustration svg {
+.card-illustration svg,
+.card-illustration img {
   width: 100%;
   height: 100%;
   max-width: 100%;
